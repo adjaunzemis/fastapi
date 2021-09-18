@@ -111,7 +111,7 @@ async def read_unicorn(name: str):
 async def login(username: str = Form(...), password: str = Form(...)):
     return {"username": username}
 
-@app.post("/files/")
+@app.post("/files/", tags=["files"])
 async def create_file(file: bytes = File(...), fileb: UploadFile = File(...), token: str = Form(...)):
     return {
         "file_size": len(file),
@@ -119,7 +119,7 @@ async def create_file(file: bytes = File(...), fileb: UploadFile = File(...), to
         "fileb_content_type": fileb.content_type
     }
 
-@app.post("/uploadfiles/")
+@app.post("/uploadfiles/", tags=["files"])
 async def create_upload_file(files: List[UploadFile] = File(...)):
     return {"filename": [file.filename for file in files]}
 
@@ -127,18 +127,18 @@ async def create_upload_file(files: List[UploadFile] = File(...)):
 async def main():
     return {"message": "Hello world!"}
 
-@app.get("/item/{item_id}")
+@app.get("/item/{item_id}", tags=["items"])
 async def read_item(item_id: str):
     if item_id not in items:
         raise HTTPException(status_code=404, detail="Item not found", headers={"X-Error": "There goes my error"})
     return {"item": items[item_id]}
 
-@app.get("/items/", response_model=List[Item])
+@app.get("/items/", response_model=List[Item], tags=["items"])
 async def read_items(user_agent: Optional[str] = Header(None), ads_id: Optional[str] = Cookie(None), skip: int = 0, limit: int = 10, q: Optional[List[str]] = Query(None)):
     return fake_items_db[skip : skip + limit]
     # return {"User-Agent": user_agent, "ads_id": ads_id}
 
-@app.get("/items/{item_id}", response_model=Item, response_model_exclude_unset=True)
+@app.get("/items/{item_id}", response_model=Item, response_model_exclude_unset=True, tags=["items"], deprecated=True)
 async def read_item(
     item_id: UUID,
     q: Optional[str] = Query(..., min_length=3, max_length=50, regex="^qParam", alias="item-query"),
@@ -157,16 +157,32 @@ async def read_item(
         item.update({"q": q})
     return item
 
-@app.get("/items/{idem_id}/name", response_model=Item, response_model_include={"name", "description"})
+@app.get("/items/{idem_id}/name", response_model=Item, response_model_include={"name", "description"}, tags=["items"])
 async def read_item_name(item_id: str):
     return items[item_id]
 
-@app.get("/items/{item_id}/public", response_model=Item, response_model_exclude={"tax"})
+@app.get("/items/{item_id}/public", response_model=Item, response_model_exclude={"tax"}, tags=["items"])
 async def read_item_public_data(item_id: str):
     return items[item_id]
 
-@app.post("/items/{item_id}", response_model=Item, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/items/{item_id}",
+    response_model=Item,
+    status_code=status.HTTP_201_CREATED,
+    tags=["items"],
+    summary="Create an Item",
+    response_description="The created item"
+)
 async def create_item(item_id: int, item: Item, q: Optional[str] = None):
+    """
+    Create an item with all the information:
+
+    - **name**: each item must have a name
+    - **description**: a long description
+    - **price**: required
+    - **tax**: if the item doesn't have tax, you can omit this
+    - **tags**: a set of unique tag strings for this item
+    """
     item_dict = item.dict()
     item_dict.update({"item_id": item_id})
     if item.tax:
@@ -176,7 +192,7 @@ async def create_item(item_id: int, item: Item, q: Optional[str] = None):
         item_dict.update({"q": q})
     return item_dict
 
-@app.put("/items/{item_id}")
+@app.put("/items/{item_id}", tags=["items"])
 async def update_item(
     item_id: int = Path(..., title="The ID of the item to update", ge=0, le=1000),
     item: Optional[Item] = Body(
@@ -222,20 +238,20 @@ async def update_item(
         results.update({"q": q})
     return results
 
-@app.get("/users/{user_id}/items/{item_id}")
+@app.get("/users/{user_id}/items/{item_id}", tags=["items", "users"])
 async def read_user_item(user_id: int, item_id: str, needy: str, skip: int = 0, limit: Optional[int] = None):
     item = {"user_id": user_id, "item_id": item_id, "needy": needy, "skip": skip, "limit": limit}
     return item
 
-@app.get("/users/me")
+@app.get("/users/me", tags=["users"])
 async def read_user_me():
     return {"user_id": "the current user"}
 
-@app.get("/users/{user_id}")
+@app.get("/users/{user_id}", tags=["users"])
 async def read_user(user_id: str):
     return {"user_id": user_id}
 
-@app.post("/users/", response_model=UserOut)
+@app.post("/users/", response_model=UserOut, tags=["users"])
 async def create_user(user_in: UserIn):
     user_saved = fake_save_user(user_in)
     return user_saved
