@@ -3,7 +3,7 @@ from typing import List, Optional, Set, Dict
 from uuid import UUID
 from datetime import datetime, time, timedelta
 
-from fastapi import FastAPI, Path, Query, Body, Cookie, Header
+from fastapi import FastAPI, Path, Query, Body, Cookie, Header, status
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 class Image(BaseModel):
@@ -116,7 +116,7 @@ async def read_item_name(item_id: str):
 async def read_item_public_data(item_id: str):
     return items[item_id]
 
-@app.post("/items/{item_id}", response_model=Item)
+@app.post("/items/{item_id}", response_model=Item, status_code=status.HTTP_201_CREATED)
 async def create_item(item_id: int, item: Item, q: Optional[str] = None):
     item_dict = item.dict()
     item_dict.update({"item_id": item_id})
