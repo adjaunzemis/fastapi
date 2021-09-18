@@ -9,14 +9,25 @@ class Image(BaseModel):
     name: str
 
 class Item(BaseModel):
-    name: str
+    name: str = Field(..., example="Foo")
     description: Optional[str] = Field(
-        None, title="The description of the item", max_length=300
+        None, title="The description of the item", max_length=300, example="A very nice Item"
     )
-    price: float = Field(... , gt=0, description="The price must be greater than zero")
-    tax: Optional[float] = None
+    price: float = Field(... , gt=0, description="The price must be greater than zero", example=35.4)
+    tax: Optional[float] = Field(None, example=3.2)
     tags: Set[str] = []
     images: Optional[List[Image]] = None
+
+    # Below superceded by Field example arguments
+    # class Config:
+    #     schema_extra = {
+    #         "example": {
+    #             "name": "Foo",
+    #             "description": "A very nice Item",
+    #             "price": 35.4,
+    #             "tax": 3.2
+    #         }
+    #     }
 
 class Offer(BaseModel):
     name: str
@@ -73,7 +84,36 @@ async def create_item(item_id: int, item: Item, q: Optional[str] = None):
 @app.put("/items/{item_id}")
 async def update_item(
     item_id: int = Path(..., title="The ID of the item to update", ge=0, le=1000),
-    item: Optional[Item] = None,
+    item: Optional[Item] = Body(
+        ..., 
+        examples={
+            "normal": {
+                "summary": "A normal example",
+                "description": "A **normal** item works correctly.",
+                "value": {
+                    "name": "Foo",
+                    "description": "A very nice Item",
+                    "price": 35.4,
+                    "tax": 3.2,
+                },
+            },
+            "converted": {
+                "summary": "An example with converted data",
+                "description": "FastAPI can convert price `strings` to actual `numbers` automatically",
+                "value": {
+                    "name": "Bar",
+                    "price": "35.4",
+                },
+            },
+            "invalid": {
+                "summary": "Invalid data is rejected with an error",
+                "value": {
+                    "name": "Baz",
+                    "price": "thirty five point four",
+                },
+            },
+        }
+    ),
     user: Optional[User] = None,
     importance: int = Body(..., gt=0),
     q: Optional[str] = None
