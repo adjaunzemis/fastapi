@@ -4,7 +4,7 @@ from uuid import UUID
 from datetime import datetime, time, timedelta
 
 from fastapi import FastAPI, Path, Query, Body, Cookie, Header
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 class Image(BaseModel):
     url: HttpUrl
@@ -41,6 +41,17 @@ class User(BaseModel):
     username: str
     full_name: Optional[str] = None
 
+class UserIn(BaseModel):
+    username: str
+    password: str
+    email: EmailStr
+    full_name: Optional[str] = None
+
+class UserOut(BaseModel):
+    username: str
+    email: EmailStr
+    full_name: Optional[str] = None
+
 class ModelName(str, Enum):
     alexnet = "alexnet"
     resnet = "resnet"
@@ -48,18 +59,29 @@ class ModelName(str, Enum):
 
 fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
 
+items = {
+    "foo": {"name": "Foo", "price": 50.2},
+    "bar": {"name": "Bar", "description": "The Bar fighters", "price": 62, "tax": 20.2},
+    "baz": {
+        "name": "Baz",
+        "description": "There goes my baz",
+        "price": 50.2,
+        "tax": 10.5,
+    },
+}
+
 app = FastAPI()
 
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
 
-@app.get("/items/")
+@app.get("/items/", response_model=List[Item])
 async def read_items(user_agent: Optional[str] = Header(None), ads_id: Optional[str] = Cookie(None), skip: int = 0, limit: int = 10, q: Optional[List[str]] = Query(None)):
-    # return fake_items_db[skip : skip + limit]
-    return {"User-Agent": user_agent, "ads_id": ads_id}
+    return fake_items_db[skip : skip + limit]
+    # return {"User-Agent": user_agent, "ads_id": ads_id}
 
-@app.get("/items/{item_id}")
+@app.get("/items/{item_id}", response_model=Item, response_model_exclude_unset=True)
 async def read_item(
     item_id: UUID,
     q: Optional[str] = Query(..., min_length=3, max_length=50, regex="^qParam", alias="item-query"),
@@ -78,7 +100,15 @@ async def read_item(
         item.update({"q": q})
     return item
 
-@app.post("/items/{item_id}")
+@app.get("/items/{idem_id}/name", response_model=Item, response_model_include={"name", "description"})
+async def read_item_name(item_id: str):
+    return items[item_id]
+
+@app.get("/items/{item_id}/public", response_model=Item, response_model_exclude={"tax"})
+async def read_item_public_data(item_id: str):
+    return items[item_id]
+
+@app.post("/items/{item_id}", response_model=Item)
 async def create_item(item_id: int, item: Item, q: Optional[str] = None):
     item_dict = item.dict()
     item_dict.update({"item_id": item_id})
@@ -147,6 +177,10 @@ async def read_user_me():
 @app.get("/users/{user_id}")
 async def read_user(user_id: str):
     return {"user_id": user_id}
+
+@app.post("/users/", response_model=UserOut)
+async def create_use(user: UserIn):
+    return user
 
 @app.get("/models/{model_name}")
 async def get_model(model_name: ModelName):
