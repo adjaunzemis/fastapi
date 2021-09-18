@@ -3,8 +3,10 @@ from typing import List, Optional, Set, Dict
 from uuid import UUID
 from datetime import datetime, time, timedelta
 
-from fastapi import FastAPI, Path, Query, Body, Cookie, Header, status, Form, File, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Path, Query, Body, Cookie, Header, status, Form, File, UploadFile, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 class Image(BaseModel):
@@ -79,7 +81,31 @@ items = {
     },
 }
 
+class UnicornException(Exception):
+    def __init__(self, name: str):
+        self.name = name
+
 app = FastAPI()
+
+@app.exception_handler(UnicornException)
+async def unicorn_exception_handler(request: Request, exc: UnicornException):
+    return JSONResponse(
+        status_code=418,
+        content={"message": f"Oops! {exc.name} did something. There goes a rainbow..."}
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+    )
+
+@app.get("/unicorns/{name}")
+async def read_unicorn(name: str):
+    if name == "yolo":
+        raise UnicornException(name=name)
+    return {"unicorn_name": name}
 
 @app.post("/login/")
 async def login(username: str = Form(...), password: str = Form(...)):
@@ -100,6 +126,12 @@ async def create_upload_file(files: List[UploadFile] = File(...)):
 @app.get("/")
 async def main():
     return {"message": "Hello world!"}
+
+@app.get("/item/{item_id}")
+async def read_item(item_id: str):
+    if item_id not in items:
+        raise HTTPException(status_code=404, detail="Item not found", headers={"X-Error": "There goes my error"})
+    return {"item": items[item_id]}
 
 @app.get("/items/", response_model=List[Item])
 async def read_items(user_agent: Optional[str] = Header(None), ads_id: Optional[str] = Cookie(None), skip: int = 0, limit: int = 10, q: Optional[List[str]] = Query(None)):
