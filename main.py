@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from pydantic import BaseModel
 
 class Item(BaseModel):
@@ -24,11 +24,11 @@ async def root():
     return {"message": "Hello World"}
 
 @app.get("/items/")
-async def read_item(skip: int = 0, limit: int = 10):
+async def read_items(skip: int = 0, limit: int = 10, q: Optional[List[str]] = Query(None)):
     return fake_items_db[skip : skip + limit]
 
 @app.get("/items/{item_id}")
-async def read_item(item_id: int, q: Optional[str] = None, short: bool = False):
+async def read_item(item_id: int, q: Optional[str] = Query(..., min_length=3, max_length=50, regex="^qParam"), short: bool = False):
     item = {"item_id": item_id}
     if q:
         item.update({"q": q})
