@@ -3,7 +3,8 @@ from typing import List, Optional, Set, Dict
 from uuid import UUID
 from datetime import datetime, time, timedelta
 
-from fastapi import FastAPI, Path, Query, Body, Cookie, Header, status, Form
+from fastapi import FastAPI, Path, Query, Body, Cookie, Header, status, Form, File, UploadFile
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 class Image(BaseModel):
@@ -84,9 +85,29 @@ app = FastAPI()
 async def login(username: str = Form(...), password: str = Form(...)):
     return {"username": username}
 
+@app.post("/filess/")
+async def create_file(files: List[bytes] = File(...)):
+    return {"file_size": [len(file) for file in files]}
+
+@app.post("/uploadfiles/")
+async def create_upload_file(files: List[UploadFile] = File(...)):
+    return {"filename": [file.filename for file in files]}
+
 @app.get("/")
-async def root():
-    return {"message": "Hello World"}
+async def main():
+    content = """
+<body>
+<form action="/files/" enctype="multipart/form-data" method="post">
+<input name="files" type="file" multiple>
+<input type="submit">
+</form>
+<form action="/uploadfiles/" enctype="multipart/form-data" method="post">
+<input name="files" type="file" multiple>
+<input type="submit">
+</form>
+</body>
+    """
+    return HTMLResponse(content=content)
 
 @app.get("/items/", response_model=List[Item])
 async def read_items(user_agent: Optional[str] = Header(None), ads_id: Optional[str] = Cookie(None), skip: int = 0, limit: int = 10, q: Optional[List[str]] = Query(None)):
