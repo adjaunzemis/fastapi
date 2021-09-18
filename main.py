@@ -3,7 +3,7 @@ from typing import List, Optional, Set, Dict
 from uuid import UUID
 from datetime import datetime, time, timedelta
 
-from fastapi import FastAPI, Path, Query, Body
+from fastapi import FastAPI, Path, Query, Body, Cookie, Header
 from pydantic import BaseModel, Field, HttpUrl
 
 class Image(BaseModel):
@@ -55,8 +55,9 @@ async def root():
     return {"message": "Hello World"}
 
 @app.get("/items/")
-async def read_items(skip: int = 0, limit: int = 10, q: Optional[List[str]] = Query(None)):
-    return fake_items_db[skip : skip + limit]
+async def read_items(user_agent: Optional[str] = Header(None), ads_id: Optional[str] = Cookie(None), skip: int = 0, limit: int = 10, q: Optional[List[str]] = Query(None)):
+    # return fake_items_db[skip : skip + limit]
+    return {"User-Agent": user_agent, "ads_id": ads_id}
 
 @app.get("/items/{item_id}")
 async def read_item(
