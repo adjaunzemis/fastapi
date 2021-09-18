@@ -3,7 +3,7 @@ from typing import List, Optional, Set, Dict
 from uuid import UUID
 from datetime import datetime, time, timedelta
 
-from fastapi import FastAPI, Path, Query, Body, Cookie, Header, status
+from fastapi import FastAPI, Path, Query, Body, Cookie, Header, status, Form
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 class Image(BaseModel):
@@ -79,6 +79,10 @@ items = {
 }
 
 app = FastAPI()
+
+@app.post("/login/")
+async def login(username: str = Form(...), password: str = Form(...)):
+    return {"username": username}
 
 @app.get("/")
 async def root():
