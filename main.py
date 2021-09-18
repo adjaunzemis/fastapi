@@ -85,9 +85,13 @@ app = FastAPI()
 async def login(username: str = Form(...), password: str = Form(...)):
     return {"username": username}
 
-@app.post("/filess/")
-async def create_file(files: List[bytes] = File(...)):
-    return {"file_size": [len(file) for file in files]}
+@app.post("/files/")
+async def create_file(file: bytes = File(...), fileb: UploadFile = File(...), token: str = Form(...)):
+    return {
+        "file_size": len(file),
+        "token": token,
+        "fileb_content_type": fileb.content_type
+    }
 
 @app.post("/uploadfiles/")
 async def create_upload_file(files: List[UploadFile] = File(...)):
@@ -95,19 +99,7 @@ async def create_upload_file(files: List[UploadFile] = File(...)):
 
 @app.get("/")
 async def main():
-    content = """
-<body>
-<form action="/files/" enctype="multipart/form-data" method="post">
-<input name="files" type="file" multiple>
-<input type="submit">
-</form>
-<form action="/uploadfiles/" enctype="multipart/form-data" method="post">
-<input name="files" type="file" multiple>
-<input type="submit">
-</form>
-</body>
-    """
-    return HTMLResponse(content=content)
+    return {"message": "Hello world!"}
 
 @app.get("/items/", response_model=List[Item])
 async def read_items(user_agent: Optional[str] = Header(None), ads_id: Optional[str] = Cookie(None), skip: int = 0, limit: int = 10, q: Optional[List[str]] = Query(None)):
