@@ -1,5 +1,7 @@
 from enum import Enum
 from typing import List, Optional, Set, Dict
+from uuid import UUID
+from datetime import datetime, time, timedelta
 
 from fastapi import FastAPI, Path, Query, Body
 from pydantic import BaseModel, Field, HttpUrl
@@ -58,16 +60,21 @@ async def read_items(skip: int = 0, limit: int = 10, q: Optional[List[str]] = Qu
 
 @app.get("/items/{item_id}")
 async def read_item(
-    item_id: int = Path(..., title="The ID of the item to get", ge=1, lt=1000),
+    item_id: UUID,
     q: Optional[str] = Query(..., min_length=3, max_length=50, regex="^qParam", alias="item-query"),
-    size: float = Query(..., gt=0, lt=10.5),
-    short: bool = False
+    start_datetime: Optional[datetime] = Body(None),
+    repeat_at: Optional[time] = Body(None),
+    process_after: Optional[timedelta] = Body(None)
 ):
-    item = {"item_id": item_id, size: size}
+    item = {
+        "item_id": item_id,
+        "state_datetime": start_datetime,
+        "repeat_at": repeat_at,
+        "process_after": process_after,
+        "start_process": start_datetime + process_after
+    }
     if q:
         item.update({"q": q})
-    if not short:
-        item.update({"description": "This is an amazing item that has a long description!"})
     return item
 
 @app.post("/items/{item_id}")
