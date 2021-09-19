@@ -238,6 +238,18 @@ async def update_item(
         results.update({"q": q})
     return results
 
+@app.patch("/items/{item_id}", response_model=Item, tags=["items"])
+async def update_item(item_id: str, item: Item):
+    """
+    Partial update for an Item, only updates provided values.
+    """
+    stored_item_data = items[item_id]
+    stored_item_model = Item(**stored_item_data)
+    update_data = item.dict(exclude_unset=True)
+    updated_item = stored_item_model.copy(update=update_data)
+    items[item_id] = jsonable_encoder(updated_item)
+    return updated_item
+
 @app.get("/users/{user_id}/items/{item_id}", tags=["items", "users"])
 async def read_user_item(user_id: int, item_id: str, needy: str, skip: int = 0, limit: Optional[int] = None):
     item = {"user_id": user_id, "item_id": item_id, "needy": needy, "skip": skip, "limit": limit}
