@@ -91,7 +91,17 @@ class CommonQueryParams:
         self.skip = skip
         self.limit = limit
 
+async def verify_token(x_token: str = Header(...)):
+    if x_token != "fake-super-secret-token":
+        raise HTTPException(status_code=400, detail="X-Token header invalid")
+
+async def verify_key(x_key: str = Header(...)):
+    if x_key != "fake-super-secret-key":
+        raise HTTPException(status_code=400, detail="X-Key header invalid")
+    return x_key
+
 app = FastAPI()
+# app = FastAPI(dependencies=[Depends(verify_token), Depends(verify_key)]) # added global dependencies
 
 @app.exception_handler(UnicornException)
 async def unicorn_exception_handler(request: Request, exc: UnicornException):
@@ -139,7 +149,7 @@ async def read_item(item_id: str):
         raise HTTPException(status_code=404, detail="Item not found", headers={"X-Error": "There goes my error"})
     return {"item": items[item_id]}
 
-@app.get("/items/", tags=["items"])
+@app.get("/items/", tags=["items"], dependencies=[Depends(verify_token), Depends(verify_key)])
 async def read_items(commons: CommonQueryParams = Depends(CommonQueryParams)):
     response = {}
     if commons.q:
