@@ -3,7 +3,7 @@ from typing import List, Optional, Set, Dict
 from uuid import UUID
 from datetime import datetime, time, timedelta
 
-from fastapi import FastAPI, Path, Query, Body, Cookie, Header, status, Form, File, UploadFile, HTTPException, Request
+from fastapi import FastAPI, Path, Query, Body, Cookie, Header, status, Form, File, UploadFile, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -85,6 +85,12 @@ class UnicornException(Exception):
     def __init__(self, name: str):
         self.name = name
 
+class CommonQueryParams:
+    def __init__(self, q: Optional[str] = None, skip: int = 0, limit: int = 100):
+        self.q = q
+        self.skip = skip
+        self.limit = limit
+
 app = FastAPI()
 
 @app.exception_handler(UnicornException)
@@ -133,10 +139,18 @@ async def read_item(item_id: str):
         raise HTTPException(status_code=404, detail="Item not found", headers={"X-Error": "There goes my error"})
     return {"item": items[item_id]}
 
-@app.get("/items/", response_model=List[Item], tags=["items"])
-async def read_items(user_agent: Optional[str] = Header(None), ads_id: Optional[str] = Cookie(None), skip: int = 0, limit: int = 10, q: Optional[List[str]] = Query(None)):
-    return fake_items_db[skip : skip + limit]
-    # return {"User-Agent": user_agent, "ads_id": ads_id}
+@app.get("/items/", tags=["items"])
+async def read_items(commons: CommonQueryParams = Depends(CommonQueryParams)):
+    response = {}
+    if commons.q:
+        response.update({"q": commons.q})
+    items = fake_items_db[commons.skip : commons.skip + commons.limit]
+    response.update({"items": items})
+    return items
+
+@app.get("/users/", tags=["users"])
+async def read_users(commons: CommonQueryParams = Depends()):
+    return commons
 
 @app.get("/items/{item_id}", response_model=Item, response_model_exclude_unset=True, tags=["items"], deprecated=True)
 async def read_item(
