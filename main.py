@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt # pip install python-jose[cryptography]
 from passlib.context import CryptContext # pip install passlib[bcrypt]
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
@@ -185,6 +186,19 @@ async def get_current_active_user(current_user: UserBase = Depends(get_current_u
 
 app = FastAPI()
 # app = FastAPI(dependencies=[Depends(verify_token), Depends(verify_key)]) # added global dependencies
+
+origins = [
+    "http://localhost",
+    "http://localhost:8080",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
