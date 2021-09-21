@@ -7,6 +7,7 @@ from fastapi import FastAPI, Path, Query, Body, Cookie, Header, status, Form, Fi
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 class Image(BaseModel):
@@ -42,8 +43,9 @@ class Offer(BaseModel):
 
 class UserBase(BaseModel):
     username: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     full_name: Optional[str] = None
+    disabled: Optional[bool] = None
 
 class UserIn(UserBase):
     password: str
@@ -100,6 +102,54 @@ async def verify_key(x_key: str = Header(...)):
         raise HTTPException(status_code=400, detail="X-Key header invalid")
     return x_key
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+fake_users_db = {
+    "johndoe": {
+        "username": "johndoe",
+        "full_name": "John Doe",
+        "email": "johndoe@example.com",
+        "hashed_password": "fakehashedsecret",
+        "disabled": False,
+    },
+    "alice": {
+        "username": "alice",
+        "full_name": "Alice Wonderson",
+        "email": "alice@example.com",
+        "hashed_password": "fakehashedsecret2",
+        "disabled": True,
+    },
+}
+
+def get_user(db, username: str):
+    if username in db:
+        user_dict = db[username]
+        return UserInDB(**user_dict)
+
+def fake_decode_token(token):
+    # This doesn't provide any security at all
+    # Check the next version
+    user = get_user(fake_users_db, token)
+    return user
+    
+def fake_hash_password(password: str):
+    return "fakehashed" + password
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    user = fake_decode_token(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+async def get_current_active_user(current_user: UserBase = Depends(get_current_user)):
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
 app = FastAPI()
 # app = FastAPI(dependencies=[Depends(verify_token), Depends(verify_key)]) # added global dependencies
 
@@ -123,9 +173,20 @@ async def read_unicorn(name: str):
         raise UnicornException(name=name)
     return {"unicorn_name": name}
 
-@app.post("/login/")
-async def login(username: str = Form(...), password: str = Form(...)):
-    return {"username": username}
+@app.post("/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)):
+    user_dict = fake_users_db.get(form_data.username)
+    if not user_dict:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    user = UserInDB(**user_dict)
+    hashed_password = fake_hash_password(form_data.password)
+    if not hashed_password == user.hashed_password:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    return {"access_token": user.username, "token_type": "bearer"}
+
+@app.get("/users/me", tags=["users"])
+async def read_users_me(current_user: UserBase = Depends(get_current_active_user)):
+    return current_user
 
 @app.post("/files/", tags=["files"])
 async def create_file(file: bytes = File(...), fileb: UploadFile = File(...), token: str = Form(...)):
@@ -278,10 +339,6 @@ async def update_item(item_id: str, item: Item):
 async def read_user_item(user_id: int, item_id: str, needy: str, skip: int = 0, limit: Optional[int] = None):
     item = {"user_id": user_id, "item_id": item_id, "needy": needy, "skip": skip, "limit": limit}
     return item
-
-@app.get("/users/me", tags=["users"])
-async def read_user_me():
-    return {"user_id": "the current user"}
 
 @app.get("/users/{user_id}", tags=["users"])
 async def read_user(user_id: str):
