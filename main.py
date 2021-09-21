@@ -1,15 +1,16 @@
 from enum import Enum
 from typing import List, Optional, Set, Dict
 from uuid import UUID
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
+import time
 
 from fastapi import FastAPI, Path, Query, Body, Cookie, Header, status, Form, File, UploadFile, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+from jose import JWTError, jwt # pip install python-jose[cryptography]
+from passlib.context import CryptContext # pip install passlib[bcrypt]
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 class Image(BaseModel):
@@ -185,6 +186,14 @@ async def get_current_active_user(current_user: UserBase = Depends(get_current_u
 app = FastAPI()
 # app = FastAPI(dependencies=[Depends(verify_token), Depends(verify_key)]) # added global dependencies
 
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
 @app.exception_handler(UnicornException)
 async def unicorn_exception_handler(request: Request, exc: UnicornException):
     return JSONResponse(
@@ -264,7 +273,7 @@ async def read_item(
     item_id: UUID,
     q: Optional[str] = Query(..., min_length=3, max_length=50, regex="^qParam", alias="item-query"),
     start_datetime: Optional[datetime] = Body(None),
-    repeat_at: Optional[time] = Body(None),
+    repeat_at: Optional[datetime] = Body(None),
     process_after: Optional[timedelta] = Body(None)
 ):
     item = {
