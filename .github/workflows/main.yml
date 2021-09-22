@@ -19,48 +19,54 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+#       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+#       - uses: actions/checkout@v2
 
-      - name: Set up python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-          
-      - name: Setup virtual environment
-        run: |
-          python -m venv .venv
-          source ./.venv/bin/activate
-          
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-        
-      # TODO: Run tests here
-      
-      - name: Package code and dependencies for deployment
-        run: |
-          cd .venv/lib/python3.9/site-packages
-          zip -r9 ../../../../lambda.zip .
-          cd ../../../../
-          zip -g ./lambda.zip -r app
-          
-      - name: Deploy Lambda
-        uses: appleboy/lambda-action@master
-        with:
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws_region: ${{ secrets.AWS_REGION }}
-          function_name: fastapi-github-example
-          zip_file: lambda.zip
-          handler: app.main.handler
-          
-#       - name: Configure AWS credentials from Production account
-#         uses: aws-actions/configure-aws-credentials@v1
+#       - name: Set up python
+#         uses: actions/setup-python@v2
 #         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: us-east-2
-#           profile_name: default
-#           project_name: <your project name>
-#           runtime: python3.9
-#           s3_bucket: <your bucket name>
+#           python-version: '3.9'
+          
+#       - name: Setup virtual environment
+#         run: |
+#           python -m venv .venv
+#           source ./.venv/bin/activate
+          
+#       - name: Install dependencies
+#         run: pip install -r requirements.txt
+        
+#       # TODO: Run tests here
+      
+#       - name: Package code and dependencies for deployment
+#         run: |
+#           cd .venv/lib/python3.9/site-packages
+#           zip -r9 ../../../../lambda.zip .
+#           cd ../../../../
+#           zip -g ./lambda.zip -r app
+          
+# #       - name: Deploy Lambda
+# #         uses: appleboy/lambda-action@master
+# #         with:
+# #           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+# #           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+# #           aws_region: ${{ secrets.AWS_REGION }}
+# #           function_name: fastapi-github-example
+# #           zip_file: lambda.zip
+# #           handler: app.main.handler
+
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - uses: aws-actions/setup-sam@v1
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          
+      # sam build 
+      - run: sam build --use-container
+
+      # Run Unit tests- Specify unit tests here 
+
+      # sam deploy
+      - run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --s3-bucket fastapi-github-example --capabilities CAPABILITY_IAM --region ${{ secrets.AWS_REGION }}
