@@ -30,7 +30,7 @@ jobs:
       - name: Setup virtual environment
         run: |
           python -m venv .venv
-          echo source ./.venv/bin/activate
+          source ./.venv/bin/activate
           
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -40,7 +40,7 @@ jobs:
       - name: Package code and dependencies for deployment
         run: |
           cd .venv/lib/python3.9/site-packages
-          zip -r ../../../../lambda.zip
+          zip -r9 ../../../../lambda.zip .
           cd ../../../../
           zip -g ./lambda.zip -r app
           
