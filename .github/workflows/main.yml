@@ -49,7 +49,7 @@ jobs:
         with:
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws_region: us-east-2
+          aws_region: ${{ secrets.AWS_REGION }}
           function_name: fastapi-github-example
           zip_file: lambda.zip
           handler: app.main.handler
