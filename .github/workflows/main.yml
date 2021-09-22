@@ -30,7 +30,7 @@ jobs:
       - name: Setup virtual environment
         run: |
           python -m venv .venv
-          echo "source ./.venv/bin/activate" >> $BASH_ENV
+          echo source ./.venv/bin/activate
           
       - name: Install dependencies
         run: pip install -r requirements.txt
